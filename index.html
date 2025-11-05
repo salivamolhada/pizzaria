@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pizzaria Natalina 3D</title>
+  <style>
+    /* Reset básico */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: #0b1b1e; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif; color: #f7f7f7; }
+    a { color: inherit; text-decoration: none; }
+
+    /* Canvas 3D de fundo */
+    #scene3d {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      display: block;
+    }
+
+    /* Overlay UI */
+    .overlay {
+      position: relative;
+      z-index: 2;
+      min-height: 100dvh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      background: linear-gradient(180deg, rgba(11,27,30,0.0), rgba(11,27,30,0.6) 60%, rgba(11,27,30,0.85));
+    }
+
+    /* Header */
+    header {
+      position: sticky;
+      top: 0;
+      backdrop-filter: blur(6px);
+      background: rgba(13, 31, 35, 0.55);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      z-index: 3;
+    }
+
+    .container {
+      width: min(1200px, 92vw);
+      margin: 0 auto;
+      padding: 18px 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .brand-logo {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: radial-gradient(#ffd66b, #e3a400);
+      box-shadow: 0 0 20px #ffd66b88, inset 0 0 10px #fff3c2;
+      display: grid; place-items: center; font-weight: 800; color: #4c1e00;
+    }
+    nav {
+      margin-top: 12px;
+      display: flex; gap: 10px; flex-wrap: wrap;
+    }
+    .nav-btn {
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+      transition: 0.25s ease;
+      font-weight: 600;
+    }
+    .nav-btn:hover { transform: translateY(-2px); background: rgba(255,255,255,0.14); }
+
+    /* Hero */
+    .hero {
+      padding: 32px 0 20px;
+      text-align: center;
+    }
+    .hero h1 {
+      font-size: clamp(28px, 4vw, 52px);
+      letter-spacing: 0.5px;
+      text-shadow: 0 0 20px #ff4040aa;
+    }
+    .hero p {
+      margin-top: 10px;
+      font-size: clamp(14px, 2.5vw, 18px);
+      color: #d6e9ea;
+    }
+
+    /* Grid de seções */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+      margin-top: 28px;
+      padding-bottom: 32px;
+    }
+    .card {
+      grid-column: span 12;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      padding: 18px;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.35);
+    }
+    @media (min-width: 920px) {
+      .card.half { grid-column: span 6; }
+      .card.third { grid-column: span 4; }
+    }
+
+    .card h2 {
+      font-size: 22px;
+      margin-bottom: 12px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .badge {
+      padding: 6px 10px; border-radius: 999px;
+      background: linear-gradient(90deg, #f33, #e90);
+      color: #fff; font-weight: 700; font-size: 12px;
+      box-shadow: 0 0 16px #ff9040aa;
+    }
+
+    .list {
+      display: grid; gap: 10px;
+    }
+    .item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px; border-radius: 12px;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+    }
+    .item strong { font-weight: 700; }
+    .price { font-weight: 700; color: #ffd66b; }
+
+    .actions { margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+    .btn.primary {
+      background: linear-gradient(90deg, #ff3d57, #ff9a3d);
+      color: #23150a;
+      box-shadow: 0 6px 20px #ff6d3daa;
+    }
+    .btn.primary:hover { filter: brightness(1.08); transform: translateY(-2px); }
+    .btn.ghost {
+      background: rgba(255,255,255,0.08);
+      color: #fff; border-color: rgba(255,255,255,0.2);
+    }
+    .btn.ghost:hover { background: rgba(255,255,255,0.16); }
+
+    /* Galeria */
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 6px;
+    }
+    @media (min-width: 920px) {
+      .gallery { grid-template-columns: repeat(4, 1fr); }
+    }
+    .ph {
+      aspect-ratio: 4/3;
+      border-radius: 12px;
+      background:
+        radial-gradient(120px 80px at 20% 30%, #ffdd95 8%, #ffb43d 30%, #ab2a2a00 70%),
+        linear-gradient(180deg, rgba(255,255,255,0.15), rgba(255,255,255,0.06));
+      border: 1px solid rgba(255,255,255,0.12);
+      position: relative; overflow: hidden;
+    }
+    .ph::after {
+      content: "Imagem IA • Tema Natal";
+      position: absolute; left: 10px; bottom: 10px;
+      font-weight: 700; font-size: 12px; color: #1f0f05;
+      background: rgba(255, 212, 120, 0.9);
+      padding: 6px 10px; border-radius: 999px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    }
+
+    /* Footer */
+    footer {
+      padding: 18px 0;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      color: #cfe7e9;
+        text-align: center;}
+
+    
+      .ph img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* Mostra a imagem inteira, pode sobrar espaço */
+  background-color: #0b1b1e; /* Cor de fundo para preencher as sobras */
+}
+
+    
+
+    /* Árvores 2D brilhando nos cantos (fallback decorativo) */
+    .corner {
+      position: fixed;
+      z-index: 1;
+      width: 140px; height: 180px;
+      filter: drop-shadow(0 0 12px #00ffbb);
+      animation: twinkle 2.4s ease-in-out infinite;
+      opacity: 0.85;
+    }
+    .corner svg { width: 100%; height: 100%; }
+    .corner.left { left: 10px; bottom: 10px; }
+    .corner.right { right: 10px; bottom: 10px; }
+    @keyframes twinkle { 0%, 100% { filter: drop-shadow(0 0 10px #00ffc2); } 50% { filter: drop-shadow(0 0 20px #ffd66b); } }
+
+    /* Util */
+    .spacer { height: 24px; }
+  </style>
+</head>
+<body>
+  <canvas id="scene3d" aria-hidden="true"></canvas>
+
+  <!-- Árvores decorativas fallback (cantos) -->
+  <div class="corner left" aria-hidden="true">
+    <svg viewBox="0 0 120 160">
+      <defs>
+        <linearGradient id="treeG" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="#0bd77a"/>
+          <stop offset="100%" stop-color="#035e3e"/>
+        </linearGradient>
+      </defs>
+      <polygon points="60,10 20,70 100,70" fill="url(#treeG)"/>
+      <polygon points="60,40 25,100 95,100" fill="url(#treeG)"/>
+      <polygon points="60,70 30,130 90,130" fill="url(#treeG)"/>
+      <rect x="52" y="130" width="16" height="22" fill="#5a3a18"/>
+      <circle cx="40" cy="80" r="4" fill="#ffd66b"/>
+      <circle cx="80" cy="55" r="4" fill="#ff6d3d"/>
+      <circle cx="70" cy="105" r="4" fill="#5bd6ff"/>
+      <polygon points="60,0 65,12 78,12 68,20 72,32 60,25 48,32 52,20 42,12 55,12" fill="#ffd66b"/>
+    </svg>
+  </div>
+  <div class="corner right" aria-hidden="true">
+    <svg viewBox="0 0 120 160">
+      <defs>
+        <linearGradient id="treeG2" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="#12f18f"/>
+          <stop offset="100%" stop-color="#046e49"/>
+        </linearGradient>
+      </defs>
+      <polygon points="60,10 20,70 100,70" fill="url(#treeG2)"/>
+      <polygon points="60,40 25,100 95,100" fill="url(#treeG2)"/>
+      <polygon points="60,70 30,130 90,130" fill="url(#treeG2)"/>
+      <rect x="52" y="130" width="16" height="22" fill="#5a3a18"/>
+      <circle cx="40" cy="80" r="4" fill="#ffd66b"/>
+      <circle cx="80" cy="55" r="4" fill="#ff6d3d"/>
+      <circle cx="70" cy="105" r="4" fill="#5bd6ff"/>
+      <polygon points="60,0 65,12 78,12 68,20 72,32 60,25 48,32 52,20 42,12 55,12" fill="#ffd66b"/>
+    </svg>
+  </div>
+
+  <div class="overlay">
+    <header>
+      <div class="container">
+        <div class="brand">
+          <div class="brand-logo">PS</div>
+          <div>
+            <div style="font-weight:900; font-size:18px;">Pizzaria Santa</div>
+            <div style="font-size:13px; color:#bfe9ea;">Especial Natal • Maringá, PR</div>
+          </div>
+        </div>
+        <nav>
+          <a href="#pedidos" class="nav-btn">Pedidos</a>
+          <a href="#rodizios" class="nav-btn">Rodízios</a>
+          <a href="#eventos" class="nav-btn">Locação de espaço</a>
+          <a href="#galeria" class="nav-btn">Galeria</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="hero">
+        <h1>Sabores que abraçam, luzes que encantam.</h1>
+        <p>Um site 3D com espírito natalino: árvores brilhando, neve suave e pizzas incríveis.</p>
+      </section>
+
+      <section id="pedidos" class="grid">
+        <div class="card half">
+          <h2><span class="badge">Pedidos</span> Faça seu pedido online</h2>
+          <div class="list">
+            <div class="item"><strong>Margherita</strong><span class="price">R$ 39,90</span></div>
+            <div class="item"><strong>Pepperoni</strong><span class="price">R$ 42,90</span></div>
+            <div class="item"><strong>Frango com Catupiry</strong><span class="price">R$ 44,90</span></div>
+            <div class="item"><strong>Vegetariana</strong><span class="price">R$ 40,90</span></div>
+          </div>
+          <div class="actions">
+            <button class="btn primary">Fazer pedido</button>
+            <button class="btn ghost">Ver cardápio completo</button>
+          </div>
+        </div>
+
+        <div class="card half">
+          <h2><span class="badge">Natal</span> Promoções festivas</h2>
+          <div class="list">
+            <div class="item"><strong>Combo Família Noel</strong><span>2 pizzas + refri 2L</span><span class="price">R$ 89,90</span></div>
+            <div class="item"><strong>Pizza Doce de Natal</strong><span>Choc., morango, leite ninho</span><span class="price">R$ 49,90</span></div>
+            <div class="item"><strong>Meia Meia Especial</strong><span>2 sabores premium</span><span class="price">R$ 54,90</span></div>
+          </div>
+          <div class="actions">
+            <button class="btn primary">Aproveitar agora</button>
+            <button class="btn ghost">Regulamento</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="rodizios" class="grid">
+        <div class="card half">
+          <h2><span class="badge">Rodízios</span> Sabores à vontade</h2>
+          <div class="list">
+            <div class="item"><strong>Tradicional</strong><span>Seg–Dom 18h–23h</span><span class="price">R$ 59,90</span></div>
+            <div class="item"><strong>Premium</strong><span>Inclui doces e bebidas</span><span class="price">R$ 74,90</span></div>
+          </div>
+          <div class="actions">
+            <button class="btn primary">Reservar mesa</button>
+            <button class="btn ghost">Ver sabores</button>
+          </div>
+        </div>
+
+        <div class="card half">
+          <h2><span class="badge">Ambiente</span> Conforto e clima natalino</h2>
+          <p style="color:#d6e9ea; margin-top:6px;">
+            Luzes piscando, árvore ao fundo, música suave e atendimento caloroso. A experiência perfeita para confraternizar.
+          </p>
+          <div class="spacer"></div>
+          <div class="actions">
+            <button class="btn primary">Fotos do rodízio</button>
+            <button class="btn ghost">Mapa e estacionamento</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="eventos" class="grid">
+        <div class="card">
+          <h2><span class="badge">Eventos</span> Locação de espaço para confraternizações</h2>
+          <div class="list">
+            <div class="item"><strong>Capacidade</strong><span>Até 80 pessoas</span></div>
+            <div class="item"><strong>Decoração</strong><span>Temas natal, aniversários e corporativo</span></div>
+            <div class="item"><strong>Pacotes</strong><span>Buffet de pizzas + bebidas</span></div>
+          </div>
+          <div class="actions">
+            <button class="btn primary">Solicitar orçamento</button>
+            <button class="btn ghost">Ver pacotes</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="galeria" class="grid">
+        <div class="card">
+          <h2><span class="badge">Galeria</span> Atmosfera natalina</h2>
+          <div class="gallery">
+            <div  class="ph" title="Fachada decorada com luzes e neve"><img src="pizzahit.png" alt=""></div>
+            <div class="ph" title="Interior aconchegante com árvore de Natal"><img src="calabresa.png" alt=""></div>
+            <div class="ph" title="Mesa de rodízio com variedade de sabores"><img src="buffalo.png" alt=""></div>
+            <div class="ph" title="Espaço para eventos com iluminação festiva"><img src="marguerita.png" alt=""></div>
+            <div class="ph" title="Pizzaiolo no forno à lenha com guirlandas"><img src="peperoni.png" alt=""></div>
+            <div class="ph" title="Clientes brindando com pizza natalina"><img src="especial.png" alt=""></div>
+            <div class="ph" title="Detalhe de pizza doce decorada"><img src="pizza.png" alt=""></div>
+            <div class="ph" title="Guirlanda e menu iluminado na parede"><img src="pizzahut.png" alt=""></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      © 2025 Pizzaria Santa • Feito com sabor e magia de Natal
+    </footer>
+  </div>
+
+  <!-- Three.js via CDN -->
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script>
+    // Cena básica
+    const canvas = document.getElementById('scene3d');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x0b1b1e, 0.035);
+
+    const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 200);
+    camera.position.set(0, 2.2, 8);
+
+    // Iluminação ambiente e pontos brilhantes (efeito natal)
+    const ambient = new THREE.AmbientLight(0xffffff, 0.35);
+    scene.add(ambient);
+
+    const glowColors = [0xffdd88, 0xff6d3d, 0x5bd6ff, 0x8cffb3];
+    const glowLights = [];
+    function addGlowLight(x, y, z, color, intensity=2.2, dist=10) {
+      const light = new THREE.PointLight(color, intensity, dist);
+      light.position.set(x, y, z);
+      scene.add(light);
+      glowLights.push(light);
+      return light;
+    }
+
+    // Cantos da tela (árvores 3D) e luzes brilhando
+    const root = new THREE.Group();
+    scene.add(root);
+
+    // Chão nevado
+    const groundGeo = new THREE.PlaneGeometry(40, 40, 1, 1);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0xe9f6ff, roughness: 0.9, metalness: 0.0 });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -1.2;
+    root.add(ground);
+
+    // Função para criar uma árvore de Natal (cones empilhados) com enfeites e estrela
+    function createTree({ scale=1, pos=[0,0,0], hue=0x0fa36a }) {
+      const tree = new THREE.Group();
+      const levels = 3;
+      for (let i = 0; i < levels; i++) {
+        const radius = (1.2 - i * 0.25) * scale;
+        const height = (1.4 - i * 0.2) * scale;
+        const geo = new THREE.ConeGeometry(radius, height, 6);
+        const mat = new THREE.MeshStandardMaterial({ color: hue, roughness: 0.65, metalness: 0.08 });
+        const cone = new THREE.Mesh(geo, mat);
+        cone.position.y = i * (height * 0.68) + height * 0.6;
+        tree.add(cone);
+      }
+      // Tronco
+      const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.18 * scale, 0.22 * scale, 0.6 * scale, 12),
+        new THREE.MeshStandardMaterial({ color: 0x5a3a18 })
+      );
+      trunk.position.y = 0.3 * scale;
+      tree.add(trunk);
+
+      // Estrela no topo
+      const star = new THREE.Mesh(
+        new THREE.OctahedronGeometry(0.25 * scale, 0),
+        new THREE.MeshStandardMaterial({ color: 0xffd66b, emissive: 0xffd66b, emissiveIntensity: 0.9, roughness: 0.3, metalness: 0.6 })
+      );
+      star.position.y = 3.0 * scale;
+      tree.add(star);
+
+      // Esferas (enfeites)
+      const orbGeo = new THREE.SphereGeometry(0.12 * scale, 16, 16);
+      const orbMats = [0xff6d3d, 0x5bd6ff, 0xff3d8b, 0x8cffb3].map(c => new THREE.MeshStandardMaterial({
+        color: c, emissive: c, emissiveIntensity: 0.35, roughness: 0.2, metalness: 0.8
+      }));
+      for (let j = 0; j < 18; j++) {
+        const orb = new THREE.Mesh(orbGeo, orbMats[j % orbMats.length]);
+        const levelY = 0.9 * scale + Math.random() * 1.8 * scale;
+        const radius = 1.0 * scale;
+        const angle = Math.random() * Math.PI * 2;
+        orb.position.set(Math.cos(angle) * radius, levelY, Math.sin(angle) * radius);
+        tree.add(orb);
+      }
+
+      tree.position.set(pos[0], pos[1], pos[2]);
+      return tree;
+    }
+
+    // Árvores nos cantos (na cena 3D) com luzes brilhantes
+    const leftTree = createTree({ scale: 1.2, pos: [-5.5, -1.0, -2.5], hue: 0x0fa36a });
+    const rightTree = createTree({ scale: 1.2, pos: [5.5, -1.0, -2.5], hue: 0x12bf7f });
+    root.add(leftTree, rightTree);
+
+    // Luzes próximas das árvores
+    addGlowLight(-5.5, 1.2, -2.5, glowColors[0], 1.8, 8);
+    addGlowLight(-5.0, 0.6, -3.0, glowColors[1], 1.6, 7);
+    addGlowLight(5.5, 1.2, -2.5, glowColors[2], 1.8, 8);
+    addGlowLight(5.0, 0.6, -3.0, glowColors[3], 1.6, 7);
+
+    // Guirlandas de luzes suspensas (cordões com pontos emissivos)
+    function createLightGarland(y=2.6, z=-3.5, count=24, width=10) {
+      const group = new THREE.Group();
+      for (let i = 0; i < count; i++) {
+        const x = -width/2 + (i / (count-1)) * width;
+        const bob = Math.sin(i * 0.4) * 0.25;
+        const bulb = new THREE.Mesh(
+          new THREE.SphereGeometry(0.05, 12, 12),
+          new THREE.MeshStandardMaterial({ color: glowColors[i % glowColors.length], emissive: glowColors[i % glowColors.length], emissiveIntensity: 2.0 })
+        );
+        bulb.position.set(x, y + bob, z);
+        group.add(bulb);
+      }
+      return group;
+    }
+    root.add(createLightGarland(2.6, -3.5), createLightGarland(2.3, -2.8), createLightGarland(2.0, -2.1));
+
+    // Flocos de neve (partículas simples)
+    const snowCount = 600;
+    const snowGeo = new THREE.BufferGeometry();
+    const positions = new Float32Array(snowCount * 3);
+    const speeds = new Float32Array(snowCount);
+    for (let i = 0; i < snowCount; i++) {
+      positions[i*3] = (Math.random() - 0.5) * 24;
+      positions[i*3+1] = Math.random() * 10 + 1;
+      positions[i*3+2] = (Math.random() - 0.5) * 8 - 2;
+      speeds[i] = 0.005 + Math.random() * 0.015;
+    }
+    snowGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const snowMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.05, transparent: true, opacity: 0.9 });
+    const snow = new THREE.Points(snowGeo, snowMat);
+    root.add(snow);
+
+    // Banner flutuante 3D com texto "Feliz Natal"
+    const bannerGroup = new THREE.Group();
+    const bannerGeo = new THREE.BoxGeometry(6, 1.2, 0.06);
+    const bannerMat = new THREE.MeshStandardMaterial({ color: 0xb22222, roughness: 0.6, metalness: 0.1 });
+    const banner = new THREE.Mesh(bannerGeo, bannerMat);
+    banner.position.set(0, 1.6, -3.6);
+    banner.rotation.y = 0.05;
+    bannerGroup.add(banner);
+
+    // Letras simples como caixas (sem fontes externas)
+    function makeLetterBox(w, h, d, x) {
+      const m = new THREE.Mesh(
+        new THREE.BoxGeometry(w, h, d),
+        new THREE.MeshStandardMaterial({ color: 0xffd66b, emissive: 0xffd66b, emissiveIntensity: 0.5 })
+      );
+      m.position.set(x, 1.6, -3.53);
+      return m;
+    }
+    const letters = [];
+    const text = "FELIZ NATAL";
+    let cursor = -2.6;
+    for (let ch of text) {
+      if (ch === ' ') { cursor += 0.35; continue; }
+      letters.push(makeLetterBox(0.18, 0.44, 0.04, cursor));
+      cursor += 0.28;
+    }
+    letters.forEach(l => bannerGroup.add(l));
+    root.add(bannerGroup);
+
+    // Pequena animação
+    let t = 0;
+    function animate() {
+      requestAnimationFrame(animate);
+      t += 0.01;
+
+      // Neve caindo
+      const pos = snow.geometry.attributes.position.array;
+      for (let i = 0; i < snowCount; i++) {
+        pos[i*3+1] -= speeds[i] * (1 + Math.sin(t + i)*0.3);
+        pos[i*3] += Math.sin(t*0.4 + i) * 0.0008;
+        if (pos[i*3+1] < -0.8) {
+          pos[i*3+1] = Math.random() * 10 + 1;
+          pos[i*3] = (Math.random() - 0.5) * 24;
+          pos[i*3+2] = (Math.random() - 0.5) * 8 - 2;
+        }
+      }
+      snow.geometry.attributes.position.needsUpdate = true;
+
+      // Luzes pulsando
+      glowLights.forEach((L, i) => {
+        L.intensity = 1.4 + Math.sin(t * (1.2 + i * 0.3)) * 0.6;
+      });
+
+      // Balancinho no banner
+      banner.rotation.z = Math.sin(t * 0.5) * 0.02;
+
+      // Leve movimento da câmera para profundidade
+      camera.position.x = Math.sin(t * 0.12) * 0.6;
+      camera.lookAt(0, 0.8, -3.2);
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // Responsivo
+    window.addEventListener('resize', () => {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+    });
+
+    // Interação simples: clique para soltar um "pisca" próximo do clique
+    window.addEventListener('click', (ev) => {
+      const nx = (ev.clientX / window.innerWidth) * 2 - 1;
+      const ny = - (ev.clientY / window.innerHeight) * 2 + 1;
+      // Mapeia para posição no banner aproximada
+      const x = nx * 6;
+      const y = ny * 3 + 1;
+      const sparkle = addGlowLight(x, y, -3.2, glowColors[Math.floor(Math.random() * glowColors.length)], 2.4, 6);
+      setTimeout(() => {
+        sparkle.intensity = 0;
+        scene.remove(sparkle);
+      }, 1400);
+    });
+  </script>
+</body>
+</html>
